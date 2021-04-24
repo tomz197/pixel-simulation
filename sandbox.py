@@ -1,5 +1,5 @@
-from math import *
 from random import *
+from math import floor
 from time import sleep
 import threading
 import pygame
@@ -80,7 +80,7 @@ class block:
             color = randint(230, 255)
             pygame.draw.rect(screen, (0, color, 0), self.square)
         elif self.type == "smoke":
-            color = randint(80, 95)
+            color = randint(65, 80)
             pygame.draw.rect(screen, (color, color, color), self.square)
         else:
             pygame.draw.rect(
@@ -192,7 +192,7 @@ def moveSand(i):
                 switch(y1 + x, y2 + x, grid[y1 + x], None)
                 i[0] += 1
         return i
-    if grid[y1 + x].type == "water" or grid[y1 + x].type == "acid" or grid[y1 + x].type == "smoke":
+    if grid[y1 + x].type == "water" or grid[y1 + x].type == "acid":
         switch(y + x, y1 + x, grid[y + x], grid[y1 + x])
         return i
     if x != 0:
@@ -201,7 +201,7 @@ def moveSand(i):
             i[0] += 1
             i[1] -= 1
             return i
-        if grid[y1 + x-1].type == "water" or grid[y1 + x-1].type == "acid" or grid[y1 + x].type == "smoke":
+        if grid[y1 + x-1].type == "water" or grid[y1 + x-1].type == "acid":
             switch(y + x, y1 + x-1, grid[y + x], grid[y1 + x-1])
             return i
     if y1 + x+1 >= numOfCells or x == blocksPW-1:
@@ -211,7 +211,7 @@ def moveSand(i):
         i[0] += 1
         i[1] += 1
         return i
-    if grid[y1 + x+1].type == "water" or grid[y1 + x+1].type == "acid" or grid[y1 + x].type == "smoke":
+    if grid[y1 + x+1].type == "water" or grid[y1 + x+1].type == "acid":
         switch(y + x, y1 + x+1, grid[y + x], grid[y1 + x+1])
         return i
     return i
@@ -288,47 +288,45 @@ def moveAcid(i):
 
     if i[0] >= blocksPW-1:
         if x != 0 and i[2] == 0 and grid[y + x-1] != None:
-            if grid[y + x-1].type == "acid":
+            if grid[y + x-1].type != "acid" and grid[y + x-1].type != "smoke":
+                switch(y + x, y + x-1, block(x, y, "smoke"), None)
+                i[1] -= 1
                 return i
-            switch(y + x, y + x-1, grid[y + x], None)
-            i[1] -= 1
-            return i
         i[2] = 1
         if y + x+1 >= numOfCells:
             i[2] = 0
             return i
         if x != blocksPW-1 and grid[y + x+1] != None:
-            if grid[y + x+1].type == "acid":
+            if grid[y + x+1].type != "acid" and grid[y + x+1].type != "smoke":
+                switch(y + x, y + x+1, block(x, y, "smoke"), None)
+                i[1] += 1
                 return i
-            switch(y + x, y + x+1, grid[y + x], None)
-            i[1] += 1
-            return i
         i[2] = 0
         return i
 
     if grid[y1 + x] != None:
-        if grid[y1 + x].type != "acid":
-            switch(y + x, y1 + x, grid[y + x], None)
+        if grid[y1 + x].type != "acid" and grid[y1 + x].type != "smoke":
+            switch(y + x, y1 + x, block(x, y, "smoke"), None)
             i[0] += 1
             i[2] = randint(0, 1)
             return i
     if x != 0 and grid[y1 + x-1] != None:
-        if grid[y1 + x-1].type != "acid":
-            switch(y + x, y1 + x-1, grid[y + x], None)
+        if grid[y1 + x-1].type != "acid" and grid[y1 + x-1].type != "smoke":
+            switch(y + x, y1 + x-1, block(x, y, "smoke"), None)
             i[0] += 1
             i[1] -= 1
             return i
     if y1 + x+1 >= numOfCells:
         return i
     if x != blocksPW-1 and grid[y1 + x+1] != None:
-        if grid[y1 + x+1].type != "acid":
-            switch(y + x, y1 + x+1, grid[y + x], None)
+        if grid[y1 + x+1].type != "acid" and grid[y1 + x+1].type != "smoke":
+            switch(y + x, y1 + x+1, block(x, y, "smoke"), None)
             i[0] += 1
             i[1] += 1
             return i
     if x != 0 and i[2] == 0 and grid[y + x-1] != None:
-        if grid[y + x-1].type != "acid":
-            switch(y + x, y + x-1, grid[y + x], None)
+        if grid[y + x-1].type != "acid" and grid[y + x-1].type != "smoke":
+            switch(y + x, y + x-1, block(x, y, "smoke"), None)
             i[1] -= 1
             return i
     i[2] = 1
@@ -336,27 +334,27 @@ def moveAcid(i):
         i[2] = 0
         return i
     if x != blocksPW-1 and grid[y + x+1] != None:
-        if grid[y + x+1].type != "acid":
-            switch(y + x, y + x+1, grid[y + x], None)
+        if grid[y + x+1].type != "acid" and grid[y + x+1].type != "smoke":
+            switch(y + x, y + x+1, block(x, y, "smoke"), None)
             i[1] += 1
             return i
 
     if x != blocksPW-1 and grid[ym1 + x] != None:
-        if grid[ym1 + x].type != "acid":
-            switch(y + x, ym1 + x, grid[y + x], None)
+        if grid[ym1 + x].type != "acid" and grid[ym1 + x].type != "smoke":
+            switch(y + x, ym1 + x, block(x, y, "smoke"), None)
             i[0] -= 1
             return i
     if x != 0 and grid[ym1 + x-1] != None:
-        if grid[ym1 + x-1].type != "acid":
-            switch(y + x, ym1 + x-1, grid[y + x], None)
+        if grid[ym1 + x-1].type != "acid" and grid[ym1 + x-1].type != "smoke":
+            switch(y + x, ym1 + x-1, block(x, y, "smoke"), None)
             i[0] -= 1
             i[1] -= 1
             return i
     if y1 + x+1 >= numOfCells:
         return i
     if x != blocksPW-1 and grid[ym1 + x+1] != None:
-        if grid[ym1 + x+1].type != "acid":
-            switch(y + x, ym1 + x+1, grid[y + x], None)
+        if grid[ym1 + x+1].type != "acid" and grid[ym1 + x+1].type != "smoke":
+            switch(y + x, ym1 + x+1, block(x, y, "smoke"), None)
             i[0] -= 1
             i[1] += 1
             return i
@@ -371,7 +369,10 @@ def moveSmoke(i):
     y2 = floor((i[0]-2)*blocksPW)
     x = floor(i[1])
 
-    if i[0] <= 1:
+    if i[0] <= 0:
+        if randint(1, 30) == 1:
+            grid[y + x] = None
+            return i
         if grid[y + x-1] == None and x != 0 and i[2] == 0:
             switch(y + x, y + x-1, grid[y + x], None)
             i[1] -= 1
@@ -391,16 +392,25 @@ def moveSmoke(i):
         switch(y + x, y1 + x, grid[y + x], None)
         i[0] -= 1
         i[2] = randint(0, 1)
-        if i[0] >= blocksPW+2:
+        if i[0] >= 2:
             if grid[y2 + x] == None:
                 switch(y1 + x, y2 + x, grid[y1 + x], None)
                 i[0] -= 1
+        return i
+    if grid[y1 + x].type == "sand" or grid[y1 + x].type == "water" or grid[y1 + x].type == "acid":
+        switch(y + x, y1 + x, grid[y + x], grid[y1 + x])
+        i[2] = randint(0, 1)
         return i
     if grid[y1 + x-1] == None and x != 0:
         switch(y + x, y1 + x-1, grid[y + x], None)
         i[0] -= 1
         i[1] -= 1
         return i
+    if x != 0:
+        if grid[y1 + x-1].type == "sand" or grid[y1 + x-1].type == "water" or grid[y1 + x-1].type == "acid":
+            switch(y + x, y1 + x-1, grid[y + x], grid[y1 + x-1])
+            i[2] = randint(0, 1)
+            return i
     if y1 + x+1 >= numOfCells:
         return i
     if grid[y1 + x+1] == None and x != blocksPW-1:
@@ -408,6 +418,11 @@ def moveSmoke(i):
         i[0] -= 1
         i[1] += 1
         return i
+    if x != blocksPW-1:
+        if grid[y1 + x+1].type == "sand" or grid[y1 + x+1].type == "water" or grid[y1 + x+1].type == "acid":
+            switch(y + x, y1 + x+1, grid[y + x], grid[y1 + x+1])
+            i[2] = randint(0, 1)
+            return i
     if grid[y + x-1] == None and x != 0 and i[2] == 0:
         switch(y + x, y + x-1, grid[y + x], None)
         i[1] -= 1
@@ -428,10 +443,15 @@ def render(arr):
     global numOfElements
     for i in arr:
         pos = i[0]*blocksPW + i[1]
+        if pos >= len(grid):
+            arr.remove(i)
+            numOfElements -= 1
+            continue
         if grid[pos] == None:
             arr.remove(i)
             numOfElements -= 1
-            print("elements: ", numOfElements)
+            print("elements: ", len(area1)+len(area2)+len(area3)+len(area4)+len(area5)+len(area6)+len(area7) +
+                  len(area8)+len(area9)+len(area10)+len(area11)+len(area12)+len(area13)+len(area14)+len(area15)+len(area16))
             continue
         if grid[pos].type == "water":
             i = moveWater(i)
@@ -439,6 +459,10 @@ def render(arr):
             i = moveSand(i)
         elif grid[pos].type == "smoke":
             i = moveSmoke(i)
+            if grid[i[0]*blocksPW + i[1]] == None:
+                arr.remove(i)
+                numOfElements -= 1
+                continue
         elif grid[pos].type == "acid":
             i = moveAcid(i)
         grid[i[0]*blocksPW + i[1]].x = i[1]
