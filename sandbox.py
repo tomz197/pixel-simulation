@@ -1,5 +1,5 @@
 from random import *
-from math import floor
+from math import floor, sqrt
 from time import sleep
 import threading
 import pygame
@@ -18,21 +18,21 @@ pygame.display.set_caption("simulation")
 
 
 class block:
-    def __init__(self, x_, y_, type_, color_, staticColor_, colorVariant_, liquid_, flamable_, lifetime_):
+    def __init__(self, x, y, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
         global areaCount
-        self.x = x_
-        self.y = y_
-        self.type = type_
-        self.color = list(color_)
-        self.staticColor = staticColor_
-        self.colorVariant = list(colorVariant_)
-        self.liqud = liquid_
-        self.flamable = flamable_
-        self.lifetime = lifetime_
+        self.x = x
+        self.y = y
+        self.type = type
+        self.color = list(color)
+        self.staticColor = staticColor
+        self.colorVariant = list(colorVariant)
+        self.liquid = liquid
+        self.flamable = flamable
+        self.lifetime = lifetime
         self.square = pygame.Rect(
-            x_*moveAmount, y_*moveAmount, moveAmount, moveAmount)
+            x*moveAmount, y*moveAmount, moveAmount, moveAmount)
         if self.lifetime != None:
-            arr = list(lifetime_)
+            arr = list(lifetime)
             self.lifetime = floor((randint(arr[0], arr[1])/arr[2])*renderSpeed)
         if self.staticColor:
             r, g, b = 0, 0, 0
@@ -111,13 +111,48 @@ class block:
             pygame.draw.rect(screen, (r, g, b), self.square)
 
 
+class PMbutton:
+    def __init__(self, pos, size, type):
+        self.x, self.y = pos[0], pos[1]
+        self.width, self.height = size[0], size[1]
+        self.type = type
+        self.rgb = (255, 255, 255)
+        self.square = pygame.Rect(self.x, self.y, self.width, self.height)
+        if self.type == "sub":
+            font = pygame.font.SysFont(None, 70)
+            self.text = font.render('-', True, self.rgb)
+        if self.type == "add":
+            font = pygame.font.SysFont(None, 70)
+            self.text = font.render('+', True, self.rgb)
+
+    def test(self, event, r, can):
+        bg = pygame.Rect(self.x-5, self.y-5, self.width+10, self.height+10)
+        pygame.draw.rect(screen, (0, 0, 0), bg)
+
+        if self.x <= event[0] <= self.x+self.width and self.y <= event[1] <= self.y+self.height and can:
+            if r >= 1 and self.type == "sub":
+                r -= 1
+            elif self.type == "add":
+                r += 1
+
+        if self.x <= event[0] <= self.x+self.width and self.y <= event[1] <= self.y+self.height:
+            new = pygame.Rect(self.x-2, self.y-2, self.width+4, self.height+4)
+            pygame.draw.rect(screen, (100, 100, 100), new)
+
+        if self.type == "sub":
+            screen.blit(self.text, (self.x+2, self.y-16))
+            return r
+        screen.blit(self.text, (self.x-4, self.y-18))
+        return r
+
+
 class button:
-    def __init__(self, pos_, rgb_, size_, type_, function_):
-        self.x, self.y = pos_[0], pos_[1]
-        self.width, self.height = size_[0], size_[1]
-        self.rgb = rgb_
-        self.type = type_
-        self.function = function_
+    def __init__(self, pos, rgb, size, type, function):
+        self.x, self.y = pos[0], pos[1]
+        self.width, self.height = size[0], size[1]
+        self.rgb = rgb
+        self.type = type
+        self.function = function
         self.square = pygame.Rect(self.x, self.y, self.width, self.height)
 
     def test(self, event, selected, can):
@@ -160,15 +195,24 @@ def deleting(event):
 
 
 def create(event, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
-    global numOfElements
     if event[0] >= screen_width or event[0] <= 0 or event[1] >= screen_height or event[1] <= 0:
         return
-    x, y = floor(event[0]/moveAmount), floor(event[1]/moveAmount)
+    #x, y = floor(event[0]/moveAmount), floor(event[1]/moveAmount)
+    x, y = event[0], event[1]
+    if x <= 0 or y <= 0 or x >= blocksPW or y >= blocksPW:
+        return
     if grid[y*blocksPW + x] == None:
         grid[y*blocksPW + x] = block(x, y, type, color, staticColor,
                                      colorVariant, liquid, flamable, lifetime)
-        numOfElements += 1
-        print("elements: ", numOfElements)
+
+
+def createBallNew(event, r, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
+    x, y = floor(event[0]/moveAmount), floor(event[1]/moveAmount)
+    for i in range(-r, r+1):
+        for ii in range(-r, r+1):
+            if sqrt(ii*ii + i*i) <= r:
+                create((x+ii, y+i), type, color,
+                       staticColor, colorVariant, liquid, flamable, lifetime)
 
 
 def createBall(event, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
@@ -216,9 +260,13 @@ def createBall(event, type, color, staticColor, colorVariant, liquid, flamable, 
            color, staticColor, colorVariant, liquid, flamable, lifetime)
 
 
-def switch(pos1, pos2, val1, val2):
+def switch(pos1, pos2, val1, val2, i, sub1, sub2,):
+    global grid
     grid[pos1] = val2
     grid[pos2] = val1
+    i[0] += sub1
+    i[1] += sub2
+    return i
 
 
 def moveSand(i):
@@ -231,35 +279,23 @@ def moveSand(i):
         return i
 
     if grid[y1 + x] == None:
-        switch(y + x, y1 + x, grid[y + x], None)
-        i[0] += 1
-        if i[0] <= blocksPW-2:
+        if i[0] < blocksPW-2:
             if grid[y2 + x] == None:
-                switch(y1 + x, y2 + x, grid[y1 + x], None)
-                i[0] += 1
-        return i
-    if grid[y1 + x].type == "water" or grid[y1 + x].type == "acid":
-        switch(y + x, y1 + x, grid[y + x], grid[y1 + x])
-        return i
+                return switch(y + x, y2 + x, grid[y + x], None, i, 2, 0)
+        return switch(y + x, y1 + x, grid[y + x], None, i, 1, 0)
+    if grid[y1 + x].liquid:
+        return switch(y + x, y1 + x, grid[y + x], grid[y1 + x], i, 0, 0)
     if x != 0:
         if grid[y1 + x-1] == None:
-            switch(y + x, y1 + x-1, grid[y + x], None)
-            i[0] += 1
-            i[1] -= 1
-            return i
-        if grid[y1 + x-1].type == "water" or grid[y1 + x-1].type == "acid":
-            switch(y + x, y1 + x-1, grid[y + x], grid[y1 + x-1])
-            return i
+            return switch(y + x, y1 + x-1, grid[y + x], None, i, 1, -1)
+        if grid[y1 + x-1].liquid:
+            return switch(y + x, y1 + x-1, grid[y + x], grid[y1 + x-1], i, 0, 0)
     if y1 + x+1 >= numOfCells or x == blocksPW-1:
         return i
     if grid[y1 + x+1] == None:
-        switch(y + x, y1 + x+1, grid[y + x], None)
-        i[0] += 1
-        i[1] += 1
-        return i
-    if grid[y1 + x+1].type == "water" or grid[y1 + x+1].type == "acid":
-        switch(y + x, y1 + x+1, grid[y + x], grid[y1 + x+1])
-        return i
+        return switch(y + x, y1 + x+1, grid[y + x], None, i, 1, 1)
+    if grid[y1 + x+1].liquid:
+        return switch(y + x, y1 + x+1, grid[y + x], grid[y1 + x+1], i, 0, 0)
     return i
 
 
@@ -271,53 +307,36 @@ def moveWater(i):
 
     if i[0] >= blocksPW-1:
         if grid[y + x-1] == None and x != 0 and i[2] == 0:
-            switch(y + x, y + x-1, grid[y + x], None)
-            i[1] -= 1
-            return i
+            return switch(y + x, y + x-1, grid[y + x], None, i, 0, -1)
         i[2] = 1
         if y + x+1 >= numOfCells:
             i[2] = 0
             return i
         if grid[y + x+1] == None and x != blocksPW-1:
-            switch(y + x, y + x+1, grid[y + x], None)
-            i[1] += 1
-            return i
+            return switch(y + x, y + x+1, grid[y + x], None, i, 0, +1)
         i[2] = 0
         return i
 
     if grid[y1 + x] == None:
-        switch(y + x, y1 + x, grid[y + x], None)
-        i[0] += 1
         i[2] = randint(0, 1)
-        if i[0] <= blocksPW-2:
+        if i[0] < blocksPW-2:
             if grid[y2 + x] == None:
-                switch(y1 + x, y2 + x, grid[y1 + x], None)
-                i[0] += 1
-        return i
+                return switch(y + x, y2 + x, grid[y + x], None, i, 2, 0)
+        return switch(y + x, y1 + x, grid[y + x], None, i, 1, 0)
     if grid[y1 + x-1] == None and x != 0:
-        switch(y + x, y1 + x-1, grid[y + x], None)
-        i[0] += 1
-        i[1] -= 1
-        return i
+        return switch(y + x, y1 + x-1, grid[y + x], None, i, 1, -1)
     if y1 + x+1 >= numOfCells:
         return i
     if grid[y1 + x+1] == None and x != blocksPW-1:
-        switch(y + x, y1 + x+1, grid[y + x], None)
-        i[0] += 1
-        i[1] += 1
-        return i
+        return switch(y + x, y1 + x+1, grid[y + x], None, i, 1, 1)
     if grid[y + x-1] == None and x != 0 and i[2] == 0:
-        switch(y + x, y + x-1, grid[y + x], None)
-        i[1] -= 1
-        return i
+        return switch(y + x, y + x-1, grid[y + x], None, i, 0, -1)
     i[2] = 1
     if y + x+1 >= numOfCells:
         i[2] = 0
         return i
     if grid[y + x+1] == None and x != blocksPW-1:
-        switch(y + x, y + x+1, grid[y + x], None)
-        i[1] += 1
-        return i
+        return switch(y + x, y + x+1, grid[y + x], None, i, 0, 1)
     i[2] = 0
     return i
 
@@ -336,75 +355,51 @@ def moveAcid(i):
     if i[0] >= blocksPW-1:
         if x != 0 and i[2] == 0 and grid[y + x-1] != None:
             if grid[y + x-1].type != "acid" and grid[y + x-1].type != "smoke":
-                switch(y + x, y + x-1, smoke, None)
-                i[1] -= 1
-                return i
+                return switch(y + x, y + x-1, smoke, None, i, 0, -1)
         i[2] = 1
         if y + x+1 >= numOfCells:
             i[2] = 0
             return i
         if x != blocksPW-1 and grid[y + x+1] != None:
             if grid[y + x+1].type != "acid" and grid[y + x+1].type != "smoke":
-                switch(y + x, y + x+1, smoke, None)
-                i[1] += 1
-                return i
+                return switch(y + x, y + x+1, smoke, None, i, 0, 1)
         i[2] = 0
         return i
 
     if grid[y1 + x] != None:
         if grid[y1 + x].type != "acid" and grid[y1 + x].type != "smoke":
-            switch(y + x, y1 + x, smoke, None)
-            i[0] += 1
             i[2] = randint(0, 1)
-            return i
+            return switch(y + x, y1 + x, smoke, None, i, 1, 0)
     if x != 0 and grid[y1 + x-1] != None:
         if grid[y1 + x-1].type != "acid" and grid[y1 + x-1].type != "smoke":
-            switch(y + x, y1 + x-1, smoke, None)
-            i[0] += 1
-            i[1] -= 1
-            return i
+            return switch(y + x, y1 + x-1, smoke, None, i, 1, -1)
     if y1 + x+1 >= numOfCells:
         return i
     if x != blocksPW-1 and grid[y1 + x+1] != None:
         if grid[y1 + x+1].type != "acid" and grid[y1 + x+1].type != "smoke":
-            switch(y + x, y1 + x+1, smoke, None)
-            i[0] += 1
-            i[1] += 1
-            return i
+            return switch(y + x, y1 + x+1, smoke, None, i, 1, 1)
     if x != 0 and i[2] == 0 and grid[y + x-1] != None:
         if grid[y + x-1].type != "acid" and grid[y + x-1].type != "smoke":
-            switch(y + x, y + x-1, smoke, None)
-            i[1] -= 1
-            return i
+            return switch(y + x, y + x-1, smoke, None, i, 0, -1)
     i[2] = 1
     if y + x+1 >= numOfCells:
         i[2] = 0
         return i
     if x != blocksPW-1 and grid[y + x+1] != None:
         if grid[y + x+1].type != "acid" and grid[y + x+1].type != "smoke":
-            switch(y + x, y + x+1, smoke, None)
-            i[1] += 1
-            return i
+            return switch(y + x, y + x+1, smoke, None, i, 0, 1)
 
     if x != blocksPW-1 and grid[ym1 + x] != None:
         if grid[ym1 + x].type != "acid" and grid[ym1 + x].type != "smoke":
-            switch(y + x, ym1 + x, smoke, None)
-            i[0] -= 1
-            return i
+            return switch(y + x, ym1 + x, smoke, None, i, -1, 0)
     if x != 0 and grid[ym1 + x-1] != None:
         if grid[ym1 + x-1].type != "acid" and grid[ym1 + x-1].type != "smoke":
-            switch(y + x, ym1 + x-1, smoke, None)
-            i[0] -= 1
-            i[1] -= 1
-            return i
+            return switch(y + x, ym1 + x-1, smoke, None, i, -1, -1)
     if y1 + x+1 >= numOfCells:
         return i
     if x != blocksPW-1 and grid[ym1 + x+1] != None:
         if grid[ym1 + x+1].type != "acid" and grid[ym1 + x+1].type != "smoke":
-            switch(y + x, ym1 + x+1, smoke, None)
-            i[0] -= 1
-            i[1] += 1
-            return i
+            return switch(y + x, ym1 + x+1, smoke, None, i, -1, 1)
 
     i[2] = 0
     return i
@@ -423,49 +418,49 @@ def moveFire(i):
             if randint(1, 100) <= grid[y1 + x].flamable:
                 fire = block(x, y, "fire", (255, 180, 0), False,
                              (0, 110, 0), False, False, (100, 200, 100))
-                switch(y + x, y1 + x, fire, smoke)
+                i = switch(y + x, y1 + x, fire, smoke, i, 0, 0)
         if x != 0 and grid[y1 + x-1] != None:
             if randint(1, 100) <= grid[y1 + x-1].flamable:
                 fire = block(x, y, "fire", (255, 180, 0), False,
                              (0, 110, 0), False, False, (100, 200, 100))
-                switch(y + x, y1 + x-1, fire, smoke)
+                i = switch(y + x, y1 + x-1, fire, smoke, i, 0, 0)
         if y1 + x+1 >= numOfCells:
             return i
         if x != blocksPW-1 and grid[y1 + x+1] != None:
             if randint(1, 100) <= grid[y1 + x+1].flamable:
                 fire = block(x, y, "fire", (255, 180, 0), False,
                              (0, 110, 0), False, False, (100, 200, 100))
-                switch(y + x, y1 + x+1, fire, smoke)
+                i = switch(y + x, y1 + x+1, fire, smoke, i, 0, 0)
     if x != 0 and grid[y + x-1] != None:
         if randint(1, 100) <= grid[y + x-1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
-            switch(y + x, y + x-1, fire, smoke)
+            i = switch(y + x, y + x-1, fire, smoke, i, 0, 0)
     if y + x+1 >= numOfCells:
         return i
     if x != blocksPW-1 and grid[y + x+1] != None:
         if randint(1, 100) <= grid[y + x+1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
-            switch(y + x, y + x+1, fire, smoke)
+            i = switch(y + x, y + x+1, fire, smoke, i, 0, 0)
 
     if x != blocksPW-1 and grid[ym1 + x] != None:
         if randint(1, 100) <= grid[ym1 + x].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
-            switch(y + x, ym1 + x, fire, smoke)
+            i = switch(y + x, ym1 + x, fire, smoke, i, 0, 0)
     if x != 0 and grid[ym1 + x-1] != None:
         if randint(1, 100) <= grid[ym1 + x-1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
-            switch(y + x, ym1 + x-1, fire, smoke)
+            i = switch(y + x, ym1 + x-1, fire, smoke, i, 0, 0)
     if y1 + x+1 >= numOfCells:
         return i
     if x != blocksPW-1 and grid[ym1 + x+1] != None:
         if randint(1, 100) <= grid[ym1 + x+1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
-            switch(y + x, ym1 + x+1, fire, smoke)
+            i = switch(y + x, ym1 + x+1, fire, smoke, i, 0, 0)
     if randint(1, 10) == 1:
         return moveWater(i)
     return i
@@ -478,88 +473,64 @@ def moveSmoke(i):
     x = floor(i[1])
 
     if i[0] <= 0:
-        if randint(1, 30) == 1:
-            grid[y + x] = None
+        if grid[y + x].lifetime == None:
+            grid[y + x].lifetime = floor(randint(50, 250)/100*renderSpeed)
             return i
         if grid[y + x-1] == None and x != 0 and i[2] == 0:
-            switch(y + x, y + x-1, grid[y + x], None)
-            i[1] -= 1
-            return i
+            return switch(y + x, y + x-1, grid[y + x], None, i, 0, -1)
         i[2] = 1
         if y + x+1 >= numOfCells:
             i[2] = 0
             return i
         if grid[y + x+1] == None and x != blocksPW-1:
-            switch(y + x, y + x+1, grid[y + x], None)
-            i[1] += 1
-            return i
+            return switch(y + x, y + x+1, grid[y + x], None, i, 0, 1)
         i[2] = 0
         return i
 
     if grid[y1 + x] == None:
-        switch(y + x, y1 + x, grid[y + x], None)
-        i[0] -= 1
         i[2] = randint(0, 1)
-        if i[0] >= 2:
+        if i[0] > 2:
             if grid[y2 + x] == None:
-                switch(y1 + x, y2 + x, grid[y1 + x], None)
-                i[0] -= 1
-        return i
-    if grid[y1 + x].type == "sand" or grid[y1 + x].type == "water" or grid[y1 + x].type == "acid":
-        switch(y + x, y1 + x, grid[y + x], grid[y1 + x])
-        i[2] = randint(0, 1)
-        return i
+                return switch(y + x, y2 + x, grid[y + x], None, i, -2, 0)
+        return switch(y + x, y1 + x, grid[y + x], None, i, -1, 0)
+
+    if grid[y1 + x].liquid and grid[y1 + x].type != "smoke":
+        return switch(y + x, y1 + x, grid[y + x], grid[y1 + x], i, 0, 0)
     if grid[y1 + x-1] == None and x != 0:
-        switch(y + x, y1 + x-1, grid[y + x], None)
-        i[0] -= 1
-        i[1] -= 1
-        return i
+        return switch(y + x, y1 + x-1, grid[y + x], None, i, -1, -1)
     if x != 0:
-        if grid[y1 + x-1].type == "sand" or grid[y1 + x-1].type == "water" or grid[y1 + x-1].type == "acid":
-            switch(y + x, y1 + x-1, grid[y + x], grid[y1 + x-1])
-            i[2] = randint(0, 1)
-            return i
+        if grid[y1 + x-1].liquid and grid[y1 + x-1].type != "smoke":
+            return switch(y + x, y1 + x-1, grid[y + x], grid[y1 + x-1], i, 0, 0)
     if y1 + x+1 >= numOfCells:
         return i
     if grid[y1 + x+1] == None and x != blocksPW-1:
-        switch(y + x, y1 + x+1, grid[y + x], None)
-        i[0] -= 1
-        i[1] += 1
-        return i
+        return switch(y + x, y1 + x+1, grid[y + x], None, i, -1, 1)
     if x != blocksPW-1:
-        if grid[y1 + x+1].type == "sand" or grid[y1 + x+1].type == "water" or grid[y1 + x+1].type == "acid":
-            switch(y + x, y1 + x+1, grid[y + x], grid[y1 + x+1])
-            i[2] = randint(0, 1)
-            return i
+        if grid[y1 + x+1].liquid and grid[y1 + x+1].type != "smoke":
+            return switch(y + x, y1 + x+1, grid[y + x], grid[y1 + x+1], i, 0, 0)
     if grid[y + x-1] == None and x != 0 and i[2] == 0:
-        switch(y + x, y + x-1, grid[y + x], None)
-        i[1] -= 1
-        return i
+        return switch(y + x, y + x-1, grid[y + x], None, i, 0, -1)
     i[2] = 1
     if y + x+1 >= numOfCells:
         i[2] = 0
         return i
     if grid[y + x+1] == None and x != blocksPW-1:
-        switch(y + x, y + x+1, grid[y + x], None)
-        i[1] += 1
-        return i
+        return switch(y + x, y + x+1, grid[y + x], None, i, 0, 1)
+
     i[2] = 0
     return i
 
 
 def render(arr):
-    global numOfElements
     for i in arr:
         pos = i[0]*blocksPW + i[1]
         if pos >= len(grid):
             arr.remove(i)
-            numOfElements -= 1
             continue
         if grid[pos] == None:
             arr.remove(i)
-            numOfElements -= 1
-            print("elements: ", len(area1)+len(area2)+len(area3)+len(area4)+len(area5)+len(area6)+len(area7) +
-                  len(area8)+len(area9)+len(area10)+len(area11)+len(area12)+len(area13)+len(area14)+len(area15)+len(area16))
+            # print("elements: ", len(area1)+len(area2)+len(area3)+len(area4)+len(area5)+len(area6)+len(area7) +
+            #      len(area8)+len(area9)+len(area10)+len(area11)+len(area12)+len(area13)+len(area14)+len(area15)+len(area16))
             continue
         if grid[pos].type == "water" or grid[pos].type == "oil":
             i = moveWater(i)
@@ -567,10 +538,6 @@ def render(arr):
             i = moveSand(i)
         elif grid[pos].type == "smoke":
             i = moveSmoke(i)
-            if grid[i[0]*blocksPW + i[1]] == None:
-                arr.remove(i)
-                numOfElements -= 1
-                continue
         elif grid[pos].type == "acid":
             i = moveAcid(i)
         elif grid[pos].type == "fire":
@@ -617,26 +584,30 @@ def mainRender():
 
 def reset():
     global grid, allSand, allWater, allStone
-    global numOfElements, deleting
+    global deleting
     numOfCells = blocksPW*blocksPW
     grid = [None]*numOfCells
     area1, area2, area3, area4 = [], [], [], []
     rea5, area6, area7, area8 = [], [], [], []
     rea9, area10, area11, area12 = [], [], [], []
     rea13, area14, area15, area16 = [], [], [], []
-    numOfElements = 0
 
 
 def main():
-    sand_button = button([760, 20], (255, 200, 0), [20, 20], "sand", None)
-    water_button = button([760, 50], (0, 0, 255), [20, 20], "water", None)
-    acid_button = button([760, 140], (0, 255, 0), [20, 20], "acid", None)
-    stone_button = button([760, 80], (200, 200, 200), [20, 20], "stone", None)
-    oil_button = button([760, 110], (50, 50, 50), [20, 20], "oil", None)
-    wood_button = button([760, 170], (70, 40, 0), [20, 20], "wood", None)
-    fire_button = button([760, 200], (255, 70, 0), [20, 20], "fire", None)
-    delete_button = button([20, 20], (200, 0, 0), [20, 20], "delete", None)
+    elementButtons = [
+        button([760, 20], (255, 200, 0), [20, 20], "sand", None),
+        button([760, 50], (0, 0, 255), [20, 20], "water", None),
+        button([760, 140], (0, 255, 0), [20, 20], "acid", None),
+        button([760, 80], (200, 200, 200), [20, 20], "stone", None),
+        button([760, 110], (50, 50, 50), [20, 20], "oil", None),
+        button([760, 170], (70, 40, 0), [20, 20], "wood", None),
+        button([760, 200], (255, 70, 0), [20, 20], "fire", None),
+        button([20, 20], (200, 0, 0), [20, 20], "delete", None),
+    ]
     reset_button = button([50, 20], (240, 240, 240), [20, 20], "", reset)
+    sub_button = PMbutton([20, 60], [20, 20], "sub")
+    add_button = PMbutton([50, 60], [20, 20], "add")
+    r = 3
     selected = ""
 
     while True:
@@ -653,42 +624,40 @@ def main():
 
             if pygame.mouse.get_pressed()[0] == True and not clicked:
                 if selected == "sand":
-                    createBall(pygame.mouse.get_pos(), "sand",
-                               (255, 200, 0), True, (20, 0), False, 0, None)
+                    createBallNew(pygame.mouse.get_pos(), r, "sand",
+                                  (255, 200, 0), True, (20, 0), False, 0, None)
                 if selected == "water":
-                    createBall(pygame.mouse.get_pos(), "water",
-                               (0, 0, 255), False, (0, 0, 35), True, 0, None)
+                    createBallNew(pygame.mouse.get_pos(), r, "water",
+                                  (0, 0, 255), False, (0, 0, 35), True, 0, None)
                 if selected == "acid":
-                    createBall(pygame.mouse.get_pos(), "acid",
-                               (0, 255, 0), False, (0, 25, 0), True, 0, None)
+                    createBallNew(pygame.mouse.get_pos(), r, "acid",
+                                  (0, 255, 0), False, (0, 25, 0), True, 0, None)
                 if selected == "stone":
-                    createBall(pygame.mouse.get_pos(), "stone",
-                               (200, 200, 200), True, (25,), False, 0, None)
+                    createBallNew(pygame.mouse.get_pos(), r, "stone",
+                                  (200, 200, 200), True, (25,), False, 0, None)
                 if selected == "oil":
-                    createBall(pygame.mouse.get_pos(), "oil",
-                               (15, 15, 15), False, (15,), True, 80, None)
+                    createBallNew(pygame.mouse.get_pos(), r, "oil",
+                                  (15, 15, 15), False, (15,), True, 80, None)
                 if selected == "wood":
-                    createBall(pygame.mouse.get_pos(), "wood",
-                               (75, 45, 0), True, (10, 5, 0), False, 10, None)
+                    createBallNew(pygame.mouse.get_pos(), r, "wood",
+                                  (75, 45, 0), True, (10, 5, 0), False, 12, None)
                 if selected == "fire":
-                    createBall(pygame.mouse.get_pos(), "fire",
-                               (255, 180, 0), False, (0, 110, 0), False, False, (10, 75, 100))
+                    createBallNew(pygame.mouse.get_pos(), r, "fire",
+                                  (255, 180, 0), False, (0, 110, 0), False, False, (10, 75, 100))
                 if selected == "delete":
                     deleting(pygame.mouse.get_pos())
         screen.fill((30, 30, 30))
 
         mainRender()
-
         mouse = pygame.mouse.get_pos()
-        selected = sand_button.test(mouse, selected, clicked)
-        selected = water_button.test(mouse, selected, clicked)
-        selected = stone_button.test(mouse, selected, clicked)
-        selected = oil_button.test(mouse, selected, clicked)
-        selected = wood_button.test(mouse, selected, clicked)
-        selected = delete_button.test(mouse, selected, clicked)
-        selected = fire_button.test(mouse, selected, clicked)
-        selected = acid_button.test(mouse, selected, clicked)
+        for i in elementButtons:
+            selected = i.test(mouse, selected, clicked)
         reset_button.test(mouse, None, clicked)
+        r = sub_button.test(mouse, r, clicked)
+        r = add_button.test(mouse, r, clicked)
+        font = pygame.font.SysFont(None, 50)
+        text = font.render(str(r), True, (255, 255, 255))
+        screen.blit(text, (80, 55))
 
         pygame.display.flip()
         clock.tick(renderSpeed)
@@ -702,7 +671,6 @@ area9, area10, area11, area12 = [], [], [], []
 area13, area14, area15, area16 = [], [], [], []
 areas = [[]]*16
 areaCount = 0
-numOfElements = 0
 
 
 main()
