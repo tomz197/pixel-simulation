@@ -18,17 +18,36 @@ pygame.display.set_caption("simulation")
 
 
 class block:
-    def __init__(self, x_, y_, type_):
+    def __init__(self, x_, y_, type_, color_, staticColor_, colorVariant_, liquid_, flamable_, lifetime_):
         global areaCount
         self.x = x_
         self.y = y_
         self.type = type_
+        self.color = list(color_)
+        self.staticColor = staticColor_
+        self.colorVariant = list(colorVariant_)
+        self.liqud = liquid_
+        self.flamable = flamable_
+        self.lifetime = lifetime_
         self.square = pygame.Rect(
             x_*moveAmount, y_*moveAmount, moveAmount, moveAmount)
-        if self.type == "stone":
-            self.grey = randint(185, 205)
-        if self.type == "sand":
-            self.sub = randint(0, 20)
+        if self.lifetime != None:
+            arr = list(lifetime_)
+            self.lifetime = floor((randint(arr[0], arr[1])/arr[2])*renderSpeed)
+        if self.staticColor:
+            r, g, b = 0, 0, 0
+            if len(self.colorVariant) != 3:
+                if self.color[0] != 0:
+                    r = self.color[0]-randint(0, self.colorVariant[0])
+                if self.color[1] != 0:
+                    g = self.color[1]-randint(0, self.colorVariant[0])
+                if self.color[2] != 0:
+                    b = self.color[2]-randint(0, self.colorVariant[0])
+            else:
+                r = self.color[0]-randint(0, self.colorVariant[0])
+                g = self.color[1]-randint(0, self.colorVariant[1])
+                b = self.color[2]-randint(0, self.colorVariant[2])
+            self.color = (r, g, b)
 
         z = randint(0, 1)
         areaCount += 1
@@ -68,23 +87,28 @@ class block:
             areaCount = 0
 
     def render(self):
+        if self.lifetime == 0:
+            grid[self.y*blocksPW + self.x] = None
+            return
+        if self.lifetime != None:
+            self.lifetime -= 1
         self.square.x = self.x*moveAmount
         self.square.y = self.y*moveAmount
-        if self.type == "sand":
-            pygame.draw.rect(
-                screen, (255-self.sub, 200-self.sub, 0), self.square)
-        elif self.type == "water":
-            color = randint(220, 255)
-            pygame.draw.rect(screen, (0, 0, color), self.square)
-        elif self.type == "acid":
-            color = randint(230, 255)
-            pygame.draw.rect(screen, (0, color, 0), self.square)
-        elif self.type == "smoke":
-            color = randint(65, 80)
-            pygame.draw.rect(screen, (color, color, color), self.square)
+        if self.staticColor:
+            pygame.draw.rect(screen, self.color, self.square)
         else:
-            pygame.draw.rect(
-                screen, (self.grey, self.grey, self.grey), self.square)
+            if len(self.colorVariant) != 3:
+                if self.color[0] != 0:
+                    r = self.color[0]-randint(0, self.colorVariant[0])
+                if self.color[1] != 0:
+                    g = self.color[1]-randint(0, self.colorVariant[0])
+                if self.color[2] != 0:
+                    b = self.color[2]-randint(0, self.colorVariant[0])
+            else:
+                r = self.color[0]-randint(0, self.colorVariant[0])
+                g = self.color[1]-randint(0, self.colorVariant[1])
+                b = self.color[2]-randint(0, self.colorVariant[2])
+            pygame.draw.rect(screen, (r, g, b), self.square)
 
 
 class button:
@@ -135,39 +159,61 @@ def deleting(event):
     grid[(y+1)*blocksPW + x+1] = None
 
 
-def create(event, type):
+def create(event, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
     global numOfElements
     if event[0] >= screen_width or event[0] <= 0 or event[1] >= screen_height or event[1] <= 0:
         return
     x, y = floor(event[0]/moveAmount), floor(event[1]/moveAmount)
     if grid[y*blocksPW + x] == None:
-        grid[y*blocksPW + x] = block(x, y, type)
+        grid[y*blocksPW + x] = block(x, y, type, color, staticColor,
+                                     colorVariant, liquid, flamable, lifetime)
         numOfElements += 1
         print("elements: ", numOfElements)
 
 
-def createBall(event, type):
-    create(event, type)
-    create((event[0]+moveAmount, event[1]), type)
-    create((event[0]-moveAmount, event[1]), type)
-    create((event[0], event[1]+moveAmount), type)
-    create((event[0], event[1]-moveAmount), type)
-    create((event[0]-moveAmount, event[1]-moveAmount), type)
-    create((event[0]+moveAmount, event[1]-moveAmount), type)
-    create((event[0]-moveAmount, event[1]+moveAmount), type)
-    create((event[0]+moveAmount, event[1]+moveAmount), type)
-    create((event[0]-moveAmount*2, event[1]), type)
-    create((event[0]-moveAmount*2, event[1]+moveAmount), type)
-    create((event[0]-moveAmount*2, event[1]-moveAmount), type)
-    create((event[0]+moveAmount*2, event[1]), type)
-    create((event[0]+moveAmount*2, event[1]+moveAmount), type)
-    create((event[0]+moveAmount*2, event[1]-moveAmount), type)
-    create((event[0], event[1]+moveAmount*2), type)
-    create((event[0]-moveAmount, event[1]+moveAmount*2), type)
-    create((event[0]+moveAmount, event[1]+moveAmount*2), type)
-    create((event[0], event[1]-moveAmount*2), type)
-    create((event[0]-moveAmount, event[1]-moveAmount*2), type)
-    create((event[0]+moveAmount, event[1]-moveAmount*2), type)
+def createBall(event, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
+    create(event, type, color, staticColor,
+           colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount, event[1]), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount, event[1]), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0], event[1]+moveAmount), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0], event[1]-moveAmount), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount, event[1]-moveAmount), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount, event[1]-moveAmount), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount, event[1]+moveAmount), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount, event[1]+moveAmount), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount*2, event[1]), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount*2, event[1]+moveAmount), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount*2, event[1]-moveAmount), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount*2, event[1]), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount*2, event[1]+moveAmount), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount*2, event[1]-moveAmount), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0], event[1]+moveAmount*2), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount, event[1]+moveAmount*2), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount, event[1]+moveAmount*2), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0], event[1]-moveAmount*2), type, color,
+           staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]-moveAmount, event[1]-moveAmount*2), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
+    create((event[0]+moveAmount, event[1]-moveAmount*2), type,
+           color, staticColor, colorVariant, liquid, flamable, lifetime)
 
 
 def switch(pos1, pos2, val1, val2):
@@ -285,11 +331,12 @@ def moveAcid(i):
 
     if randint(1, 20) != 1:
         return moveWater(i)
-
+    smoke = block(x, y, "smoke", (100, 100, 100),
+                  False, (20,), True, False, None)
     if i[0] >= blocksPW-1:
         if x != 0 and i[2] == 0 and grid[y + x-1] != None:
             if grid[y + x-1].type != "acid" and grid[y + x-1].type != "smoke":
-                switch(y + x, y + x-1, block(x, y, "smoke"), None)
+                switch(y + x, y + x-1, smoke, None)
                 i[1] -= 1
                 return i
         i[2] = 1
@@ -298,7 +345,7 @@ def moveAcid(i):
             return i
         if x != blocksPW-1 and grid[y + x+1] != None:
             if grid[y + x+1].type != "acid" and grid[y + x+1].type != "smoke":
-                switch(y + x, y + x+1, block(x, y, "smoke"), None)
+                switch(y + x, y + x+1, smoke, None)
                 i[1] += 1
                 return i
         i[2] = 0
@@ -306,13 +353,13 @@ def moveAcid(i):
 
     if grid[y1 + x] != None:
         if grid[y1 + x].type != "acid" and grid[y1 + x].type != "smoke":
-            switch(y + x, y1 + x, block(x, y, "smoke"), None)
+            switch(y + x, y1 + x, smoke, None)
             i[0] += 1
             i[2] = randint(0, 1)
             return i
     if x != 0 and grid[y1 + x-1] != None:
         if grid[y1 + x-1].type != "acid" and grid[y1 + x-1].type != "smoke":
-            switch(y + x, y1 + x-1, block(x, y, "smoke"), None)
+            switch(y + x, y1 + x-1, smoke, None)
             i[0] += 1
             i[1] -= 1
             return i
@@ -320,13 +367,13 @@ def moveAcid(i):
         return i
     if x != blocksPW-1 and grid[y1 + x+1] != None:
         if grid[y1 + x+1].type != "acid" and grid[y1 + x+1].type != "smoke":
-            switch(y + x, y1 + x+1, block(x, y, "smoke"), None)
+            switch(y + x, y1 + x+1, smoke, None)
             i[0] += 1
             i[1] += 1
             return i
     if x != 0 and i[2] == 0 and grid[y + x-1] != None:
         if grid[y + x-1].type != "acid" and grid[y + x-1].type != "smoke":
-            switch(y + x, y + x-1, block(x, y, "smoke"), None)
+            switch(y + x, y + x-1, smoke, None)
             i[1] -= 1
             return i
     i[2] = 1
@@ -335,18 +382,18 @@ def moveAcid(i):
         return i
     if x != blocksPW-1 and grid[y + x+1] != None:
         if grid[y + x+1].type != "acid" and grid[y + x+1].type != "smoke":
-            switch(y + x, y + x+1, block(x, y, "smoke"), None)
+            switch(y + x, y + x+1, smoke, None)
             i[1] += 1
             return i
 
     if x != blocksPW-1 and grid[ym1 + x] != None:
         if grid[ym1 + x].type != "acid" and grid[ym1 + x].type != "smoke":
-            switch(y + x, ym1 + x, block(x, y, "smoke"), None)
+            switch(y + x, ym1 + x, smoke, None)
             i[0] -= 1
             return i
     if x != 0 and grid[ym1 + x-1] != None:
         if grid[ym1 + x-1].type != "acid" and grid[ym1 + x-1].type != "smoke":
-            switch(y + x, ym1 + x-1, block(x, y, "smoke"), None)
+            switch(y + x, ym1 + x-1, smoke, None)
             i[0] -= 1
             i[1] -= 1
             return i
@@ -354,12 +401,73 @@ def moveAcid(i):
         return i
     if x != blocksPW-1 and grid[ym1 + x+1] != None:
         if grid[ym1 + x+1].type != "acid" and grid[ym1 + x+1].type != "smoke":
-            switch(y + x, ym1 + x+1, block(x, y, "smoke"), None)
+            switch(y + x, ym1 + x+1, smoke, None)
             i[0] -= 1
             i[1] += 1
             return i
 
     i[2] = 0
+    return i
+
+
+def moveFire(i):
+    y = floor(i[0]*blocksPW)
+    y1 = floor((i[0]+1)*blocksPW)
+    ym1 = floor((i[0]-1)*blocksPW)
+    x = floor(i[1])
+
+    smoke = block(x, y, "smoke", (100, 100, 100),
+                  False, (20,), True, False, None)
+    if i[0] < blocksPW-1:
+        if grid[y1 + x] != None:
+            if randint(1, 100) <= grid[y1 + x].flamable:
+                fire = block(x, y, "fire", (255, 180, 0), False,
+                             (0, 110, 0), False, False, (100, 200, 100))
+                switch(y + x, y1 + x, fire, smoke)
+        if x != 0 and grid[y1 + x-1] != None:
+            if randint(1, 100) <= grid[y1 + x-1].flamable:
+                fire = block(x, y, "fire", (255, 180, 0), False,
+                             (0, 110, 0), False, False, (100, 200, 100))
+                switch(y + x, y1 + x-1, fire, smoke)
+        if y1 + x+1 >= numOfCells:
+            return i
+        if x != blocksPW-1 and grid[y1 + x+1] != None:
+            if randint(1, 100) <= grid[y1 + x+1].flamable:
+                fire = block(x, y, "fire", (255, 180, 0), False,
+                             (0, 110, 0), False, False, (100, 200, 100))
+                switch(y + x, y1 + x+1, fire, smoke)
+    if x != 0 and grid[y + x-1] != None:
+        if randint(1, 100) <= grid[y + x-1].flamable:
+            fire = block(x, y, "fire", (255, 180, 0), False,
+                         (0, 110, 0), False, False, (100, 200, 100))
+            switch(y + x, y + x-1, fire, smoke)
+    if y + x+1 >= numOfCells:
+        return i
+    if x != blocksPW-1 and grid[y + x+1] != None:
+        if randint(1, 100) <= grid[y + x+1].flamable:
+            fire = block(x, y, "fire", (255, 180, 0), False,
+                         (0, 110, 0), False, False, (100, 200, 100))
+            switch(y + x, y + x+1, fire, smoke)
+
+    if x != blocksPW-1 and grid[ym1 + x] != None:
+        if randint(1, 100) <= grid[ym1 + x].flamable:
+            fire = block(x, y, "fire", (255, 180, 0), False,
+                         (0, 110, 0), False, False, (100, 200, 100))
+            switch(y + x, ym1 + x, fire, smoke)
+    if x != 0 and grid[ym1 + x-1] != None:
+        if randint(1, 100) <= grid[ym1 + x-1].flamable:
+            fire = block(x, y, "fire", (255, 180, 0), False,
+                         (0, 110, 0), False, False, (100, 200, 100))
+            switch(y + x, ym1 + x-1, fire, smoke)
+    if y1 + x+1 >= numOfCells:
+        return i
+    if x != blocksPW-1 and grid[ym1 + x+1] != None:
+        if randint(1, 100) <= grid[ym1 + x+1].flamable:
+            fire = block(x, y, "fire", (255, 180, 0), False,
+                         (0, 110, 0), False, False, (100, 200, 100))
+            switch(y + x, ym1 + x+1, fire, smoke)
+    if randint(1, 10) == 1:
+        return moveWater(i)
     return i
 
 
@@ -453,7 +561,7 @@ def render(arr):
             print("elements: ", len(area1)+len(area2)+len(area3)+len(area4)+len(area5)+len(area6)+len(area7) +
                   len(area8)+len(area9)+len(area10)+len(area11)+len(area12)+len(area13)+len(area14)+len(area15)+len(area16))
             continue
-        if grid[pos].type == "water":
+        if grid[pos].type == "water" or grid[pos].type == "oil":
             i = moveWater(i)
         elif grid[pos].type == "sand":
             i = moveSand(i)
@@ -465,6 +573,8 @@ def render(arr):
                 continue
         elif grid[pos].type == "acid":
             i = moveAcid(i)
+        elif grid[pos].type == "fire":
+            i = moveFire(i)
         grid[i[0]*blocksPW + i[1]].x = i[1]
         grid[i[0]*blocksPW + i[1]].y = i[0]
         grid[i[0]*blocksPW + i[1]].render()
@@ -522,7 +632,9 @@ def main():
     water_button = button([760, 50], (0, 0, 255), [20, 20], "water", None)
     acid_button = button([760, 140], (0, 255, 0), [20, 20], "acid", None)
     stone_button = button([760, 80], (200, 200, 200), [20, 20], "stone", None)
-    smoke_button = button([760, 110], (100, 100, 100), [20, 20], "smoke", None)
+    oil_button = button([760, 110], (50, 50, 50), [20, 20], "oil", None)
+    wood_button = button([760, 170], (70, 40, 0), [20, 20], "wood", None)
+    fire_button = button([760, 200], (255, 70, 0), [20, 20], "fire", None)
     delete_button = button([20, 20], (200, 0, 0), [20, 20], "delete", None)
     reset_button = button([50, 20], (240, 240, 240), [20, 20], "", reset)
     selected = ""
@@ -541,15 +653,26 @@ def main():
 
             if pygame.mouse.get_pressed()[0] == True and not clicked:
                 if selected == "sand":
-                    createBall(pygame.mouse.get_pos(), "sand")
+                    createBall(pygame.mouse.get_pos(), "sand",
+                               (255, 200, 0), True, (20, 0), False, 0, None)
                 if selected == "water":
-                    createBall(pygame.mouse.get_pos(), "water")
+                    createBall(pygame.mouse.get_pos(), "water",
+                               (0, 0, 255), False, (0, 0, 35), True, 0, None)
                 if selected == "acid":
-                    createBall(pygame.mouse.get_pos(), "acid")
+                    createBall(pygame.mouse.get_pos(), "acid",
+                               (0, 255, 0), False, (0, 25, 0), True, 0, None)
                 if selected == "stone":
-                    createBall(pygame.mouse.get_pos(), "stone")
-                if selected == "smoke":
-                    createBall(pygame.mouse.get_pos(), "smoke")
+                    createBall(pygame.mouse.get_pos(), "stone",
+                               (200, 200, 200), True, (25,), False, 0, None)
+                if selected == "oil":
+                    createBall(pygame.mouse.get_pos(), "oil",
+                               (15, 15, 15), False, (15,), True, 80, None)
+                if selected == "wood":
+                    createBall(pygame.mouse.get_pos(), "wood",
+                               (75, 45, 0), True, (10, 5, 0), False, 10, None)
+                if selected == "fire":
+                    createBall(pygame.mouse.get_pos(), "fire",
+                               (255, 180, 0), False, (0, 110, 0), False, False, (10, 75, 100))
                 if selected == "delete":
                     deleting(pygame.mouse.get_pos())
         screen.fill((30, 30, 30))
@@ -560,8 +683,10 @@ def main():
         selected = sand_button.test(mouse, selected, clicked)
         selected = water_button.test(mouse, selected, clicked)
         selected = stone_button.test(mouse, selected, clicked)
-        selected = smoke_button.test(mouse, selected, clicked)
+        selected = oil_button.test(mouse, selected, clicked)
+        selected = wood_button.test(mouse, selected, clicked)
         selected = delete_button.test(mouse, selected, clicked)
+        selected = fire_button.test(mouse, selected, clicked)
         selected = acid_button.test(mouse, selected, clicked)
         reset_button.test(mouse, None, clicked)
 
