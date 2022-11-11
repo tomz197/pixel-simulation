@@ -1,15 +1,16 @@
-from random import *
-from math import floor, sqrt
-from time import sleep
-import threading
-import pygame
 import sys
+import threading
+from math import floor, sqrt
+from random import *
+from time import sleep
+
+import pygame
 
 pygame.init()
 clock = pygame.time.Clock()
 
-blocksPW = 160
-moveAmount = 5
+blocksPW = 80
+moveAmount = 10
 renderSpeed = 30
 screen_width = 800
 screen_height = 800
@@ -92,8 +93,10 @@ class block:
             return
         if self.lifetime != None:
             self.lifetime -= 1
+
         self.square.x = self.x*moveAmount
         self.square.y = self.y*moveAmount
+
         if self.staticColor:
             pygame.draw.rect(screen, self.color, self.square)
         else:
@@ -156,108 +159,61 @@ class button:
         self.square = pygame.Rect(self.x, self.y, self.width, self.height)
 
     def test(self, event, selected, can):
+        hover = False
         bg = pygame.Rect(self.x-5, self.y-5, self.width+10, self.height+10)
         pygame.draw.rect(screen, (0, 0, 0), bg)
-        if self.x <= event[0] <= self.x+self.width and self.y <= event[1] <= self.y+self.height and can and self.function != None:
+        if self.x <= event[0] <= self.x+self.width and self.y <= event[1] <= self.y+self.height:
+            hover = True
+        if hover and can and self.function != None:
             self.function()
         if selected == self.type:
             new = pygame.Rect(self.x-2, self.y-2, self.width+4, self.height+4)
             pygame.draw.rect(screen, (255, 0, 0), new)
             pygame.draw.rect(screen, self.rgb, self.square)
-            return selected
+            return selected, hover
 
-        if self.x <= event[0] <= self.x+self.width and self.y <= event[1] <= self.y+self.height and can:
+        if hover and can:
             pygame.draw.rect(screen, self.rgb, self.square)
             selected = self.type
+            hover = hover
 
-        if self.x <= event[0] <= self.x+self.width and self.y <= event[1] <= self.y+self.height:
+        if hover:
             new = pygame.Rect(self.x-2, self.y-2, self.width+4, self.height+4)
             pygame.draw.rect(screen, self.rgb, new)
-            return selected
+            return selected, hover
 
         pygame.draw.rect(screen, self.rgb, self.square)
-        return selected
+        return selected, hover
 
 
-def deleting(event):
+def deleting(event, r):
     if event[0] >= screen_width-moveAmount or event[0] <= moveAmount or event[1] >= screen_height-moveAmount or event[1] <= 1:
         return
     x, y = floor(event[0]/moveAmount), floor(event[1]/moveAmount)
-    grid[y*blocksPW + x] = None
-    grid[(y-1)*blocksPW + x-1] = None
-    grid[(y-1)*blocksPW + x] = None
-    grid[(y-1)*blocksPW + x+1] = None
-    grid[y*blocksPW + x-1] = None
-    grid[y*blocksPW + x+1] = None
-    grid[(y+1)*blocksPW + x-1] = None
-    grid[(y+1)*blocksPW + x] = None
-    grid[(y+1)*blocksPW + x+1] = None
+    for i in range(-r, r+1):
+        for ii in range(-r, r+1):
+            if sqrt(ii*ii + i*i) <= r:
+                if x+ii <= 0 or y+i <= 0 or x+ii >= blocksPW or y+i >= blocksPW:
+                    continue
+                grid[(y+i)*blocksPW + x+ii] = None
 
 
 def create(event, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
-    if event[0] >= screen_width or event[0] <= 0 or event[1] >= screen_height or event[1] <= 0:
-        return
-    #x, y = floor(event[0]/moveAmount), floor(event[1]/moveAmount)
     x, y = event[0], event[1]
-    if x <= 0 or y <= 0 or x >= blocksPW or y >= blocksPW:
+    if x < 0 or y < 0 or x >= blocksPW or y >= blocksPW:
         return
     if grid[y*blocksPW + x] == None:
         grid[y*blocksPW + x] = block(x, y, type, color, staticColor,
                                      colorVariant, liquid, flamable, lifetime)
 
 
-def createBallNew(event, r, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
+def createBall(event, r, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
     x, y = floor(event[0]/moveAmount), floor(event[1]/moveAmount)
     for i in range(-r, r+1):
         for ii in range(-r, r+1):
             if sqrt(ii*ii + i*i) <= r:
                 create((x+ii, y+i), type, color,
                        staticColor, colorVariant, liquid, flamable, lifetime)
-
-
-def createBall(event, type, color, staticColor, colorVariant, liquid, flamable, lifetime):
-    create(event, type, color, staticColor,
-           colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount, event[1]), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount, event[1]), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0], event[1]+moveAmount), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0], event[1]-moveAmount), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount, event[1]-moveAmount), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount, event[1]-moveAmount), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount, event[1]+moveAmount), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount, event[1]+moveAmount), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount*2, event[1]), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount*2, event[1]+moveAmount), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount*2, event[1]-moveAmount), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount*2, event[1]), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount*2, event[1]+moveAmount), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount*2, event[1]-moveAmount), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0], event[1]+moveAmount*2), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount, event[1]+moveAmount*2), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount, event[1]+moveAmount*2), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0], event[1]-moveAmount*2), type, color,
-           staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]-moveAmount, event[1]-moveAmount*2), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
-    create((event[0]+moveAmount, event[1]-moveAmount*2), type,
-           color, staticColor, colorVariant, liquid, flamable, lifetime)
 
 
 def switch(pos1, pos2, val1, val2, i, sub1, sub2,):
@@ -316,15 +272,16 @@ def moveWater(i):
             return switch(y + x, y + x+1, grid[y + x], None, i, 0, +1)
         i[2] = 0
         return i
-
-    if grid[y1 + x] == None:
-        i[2] = randint(0, 1)
-        if i[0] < blocksPW-2:
-            if grid[y2 + x] == None:
-                return switch(y + x, y2 + x, grid[y + x], None, i, 2, 0)
-        return switch(y + x, y1 + x, grid[y + x], None, i, 1, 0)
-    if grid[y1 + x-1] == None and x != 0:
-        return switch(y + x, y1 + x-1, grid[y + x], None, i, 1, -1)
+    if y1 + x < numOfCells:
+        if grid[y1 + x] == None:
+            i[2] = randint(0, 1)
+            if y2 + x < numOfCells:
+                if grid[y2 + x] == None:
+                    return switch(y + x, y2 + x, grid[y + x], None, i, 2, 0)
+            return switch(y + x, y1 + x, grid[y + x], None, i, 1, 0)
+    if y1 + x < numOfCells:
+        if grid[y1 + x-1] == None and x != 0:
+            return switch(y + x, y1 + x-1, grid[y + x], None, i, 1, -1)
     if y1 + x+1 >= numOfCells:
         return i
     if grid[y1 + x+1] == None and x != blocksPW-1:
@@ -351,7 +308,8 @@ def moveAcid(i):
     if randint(1, 20) != 1:
         return moveWater(i)
     smoke = block(x, y, "smoke", (100, 100, 100),
-                  False, (20,), True, False, None)
+                  True, (0,), True, False, None)
+
     if i[0] >= blocksPW-1:
         if x != 0 and i[2] == 0 and grid[y + x-1] != None:
             if grid[y + x-1].type != "acid" and grid[y + x-1].type != "smoke":
@@ -410,20 +368,24 @@ def moveFire(i):
     y1 = floor((i[0]+1)*blocksPW)
     ym1 = floor((i[0]-1)*blocksPW)
     x = floor(i[1])
+    smoke = block(y, x, "smoke", (100, 100, 100),
+                  True, (0,), True, False, None)
 
-    smoke = block(x, y, "smoke", (100, 100, 100),
-                  False, (20,), True, False, None)
     if i[0] < blocksPW-1:
+        if y1 + x >= numOfCells:
+            return i
         if grid[y1 + x] != None:
             if randint(1, 100) <= grid[y1 + x].flamable:
                 fire = block(x, y, "fire", (255, 180, 0), False,
                              (0, 110, 0), False, False, (100, 200, 100))
                 i = switch(y + x, y1 + x, fire, smoke, i, 0, 0)
-        if x != 0 and grid[y1 + x-1] != None:
+
+        if x >= 0 and grid[y1 + x-1] != None:
             if randint(1, 100) <= grid[y1 + x-1].flamable:
                 fire = block(x, y, "fire", (255, 180, 0), False,
                              (0, 110, 0), False, False, (100, 200, 100))
                 i = switch(y + x, y1 + x-1, fire, smoke, i, 0, 0)
+
         if y1 + x+1 >= numOfCells:
             return i
         if x != blocksPW-1 and grid[y1 + x+1] != None:
@@ -431,13 +393,16 @@ def moveFire(i):
                 fire = block(x, y, "fire", (255, 180, 0), False,
                              (0, 110, 0), False, False, (100, 200, 100))
                 i = switch(y + x, y1 + x+1, fire, smoke, i, 0, 0)
-    if x != 0 and grid[y + x-1] != None:
+
+    if x >= 0 and grid[y + x-1] != None:
         if randint(1, 100) <= grid[y + x-1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
             i = switch(y + x, y + x-1, fire, smoke, i, 0, 0)
+
     if y + x+1 >= numOfCells:
         return i
+
     if x != blocksPW-1 and grid[y + x+1] != None:
         if randint(1, 100) <= grid[y + x+1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
@@ -449,19 +414,23 @@ def moveFire(i):
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
             i = switch(y + x, ym1 + x, fire, smoke, i, 0, 0)
-    if x != 0 and grid[ym1 + x-1] != None:
+
+    if x >= 0 and grid[ym1 + x-1] != None:
         if randint(1, 100) <= grid[ym1 + x-1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
             i = switch(y + x, ym1 + x-1, fire, smoke, i, 0, 0)
+
     if y1 + x+1 >= numOfCells:
         return i
+
     if x != blocksPW-1 and grid[ym1 + x+1] != None:
         if randint(1, 100) <= grid[ym1 + x+1].flamable:
             fire = block(x, y, "fire", (255, 180, 0), False,
                          (0, 110, 0), False, False, (100, 200, 100))
             i = switch(y + x, ym1 + x+1, fire, smoke, i, 0, 0)
-    if randint(1, 10) == 1:
+
+    if randint(1, 10) == 1 and i[0] < blocksPW-3:
         return moveWater(i)
     return i
 
@@ -585,12 +554,17 @@ def mainRender():
 def reset():
     global grid, allSand, allWater, allStone
     global deleting
+    global area1, area2, area3, area4
+    global area5, area6, area7, area8
+    global area9, area10, area11, area12
+    global area13, area14, area15, area16
+
     numOfCells = blocksPW*blocksPW
     grid = [None]*numOfCells
     area1, area2, area3, area4 = [], [], [], []
-    rea5, area6, area7, area8 = [], [], [], []
-    rea9, area10, area11, area12 = [], [], [], []
-    rea13, area14, area15, area16 = [], [], [], []
+    area5, area6, area7, area8 = [], [], [], []
+    area9, area10, area11, area12 = [], [], [], []
+    area13, area14, area15, area16 = [], [], [], []
 
 
 def main():
@@ -613,51 +587,53 @@ def main():
     while True:
         # print(len(area1), len(area2), len(area3), len(area4), len(area5), len(area6), len(area7), len(area8), len(
         #    area9), len(area10), len(area11), len(area12), len(area13), len(area14), len(area15), len(area16))
+        can = True
         clicked = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
             if event.type == pygame.MOUSEBUTTONDOWN:
                 clicked = True
-
-            if pygame.mouse.get_pressed()[0] == True and not clicked:
-                if selected == "sand":
-                    createBallNew(pygame.mouse.get_pos(), r, "sand",
-                                  (255, 200, 0), True, (20, 0), False, 0, None)
-                if selected == "water":
-                    createBallNew(pygame.mouse.get_pos(), r, "water",
-                                  (0, 0, 255), False, (0, 0, 35), True, 0, None)
-                if selected == "acid":
-                    createBallNew(pygame.mouse.get_pos(), r, "acid",
-                                  (0, 255, 0), False, (0, 25, 0), True, 0, None)
-                if selected == "stone":
-                    createBallNew(pygame.mouse.get_pos(), r, "stone",
-                                  (200, 200, 200), True, (25,), False, 0, None)
-                if selected == "oil":
-                    createBallNew(pygame.mouse.get_pos(), r, "oil",
-                                  (15, 15, 15), False, (15,), True, 80, None)
-                if selected == "wood":
-                    createBallNew(pygame.mouse.get_pos(), r, "wood",
-                                  (75, 45, 0), True, (10, 5, 0), False, 12, None)
-                if selected == "fire":
-                    createBallNew(pygame.mouse.get_pos(), r, "fire",
-                                  (255, 180, 0), False, (0, 110, 0), False, False, (10, 75, 100))
-                if selected == "delete":
-                    deleting(pygame.mouse.get_pos())
         screen.fill((30, 30, 30))
-
         mainRender()
         mouse = pygame.mouse.get_pos()
         for i in elementButtons:
-            selected = i.test(mouse, selected, clicked)
+            selected, a = i.test(mouse, selected, clicked)
+            if a:
+                can = False
+
         reset_button.test(mouse, None, clicked)
         r = sub_button.test(mouse, r, clicked)
         r = add_button.test(mouse, r, clicked)
         font = pygame.font.SysFont(None, 50)
         text = font.render(str(r), True, (255, 255, 255))
         screen.blit(text, (80, 55))
+
+        if pygame.mouse.get_pressed()[0] and can:
+            if selected == "sand":
+                createBall(pygame.mouse.get_pos(), r, "sand",
+                           (255, 200, 0), True, (20, 0), False, 0, None)
+            if selected == "water":
+                createBall(pygame.mouse.get_pos(), r, "water",
+                           (0, 0, 225), False, (0, 0, 25), True, 0, None)
+            if selected == "acid":
+                createBall(pygame.mouse.get_pos(), r, "acid",
+                           (0, 255, 0), False, (0, 25, 0), True, 0, None)
+            if selected == "stone":
+                createBall(pygame.mouse.get_pos(), r, "stone",
+                           (200, 200, 200), True, (25,), False, 0, None)
+            if selected == "oil":
+                createBall(pygame.mouse.get_pos(), r, "oil",
+                           (15, 15, 15), False, (15,), True, 80, None)
+            if selected == "wood":
+                createBall(pygame.mouse.get_pos(), r, "wood",
+                           (75, 45, 0), True, (10, 5, 0), False, 12, None)
+            if selected == "fire":
+                createBall(pygame.mouse.get_pos(), r, "fire",
+                           (255, 180, 0), False, (0, 110, 0), False, False, (10, 75, 100))
+            if selected == "delete":
+                deleting(pygame.mouse.get_pos(), r)
 
         pygame.display.flip()
         clock.tick(renderSpeed)
@@ -669,7 +645,6 @@ area1, area2, area3, area4 = [], [], [], []
 area5, area6, area7, area8 = [], [], [], []
 area9, area10, area11, area12 = [], [], [], []
 area13, area14, area15, area16 = [], [], [], []
-areas = [[]]*16
 areaCount = 0
 
 
